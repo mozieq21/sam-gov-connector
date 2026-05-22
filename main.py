@@ -246,4 +246,7 @@ def search_entities(
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    port = os.environ.get("PORT", "8000")
+    os.environ["FASTMCP_HOST"] = "0.0.0.0"
+    os.environ["FASTMCP_PORT"] = port
     mcp.run(transport="sse")
