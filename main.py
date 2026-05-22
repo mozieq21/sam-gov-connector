@@ -204,10 +204,51 @@ if __name__ == "__main__":
             "version": "1.0.0",
             "description": "Connect Claude to SAM.gov for federal contract search and vendor lookup.",
             "tools": [
-                {"name": "search_opportunities", "description": "Search federal contracts on SAM.gov by keyword, NAICS, agency, set-aside, state and date."},
-                {"name": "get_opportunity", "description": "Get full details of a SAM.gov opportunity by Notice ID."},
-                {"name": "search_entities", "description": "Look up SAM-registered vendors by name, UEI, or CAGE code."}
-            ]
+                {
+                    "name": "search_opportunities",
+                    "description": "Search federal contracts on SAM.gov by keyword, NAICS, agency, set-aside, state and date.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "keywords": {"type": "string"},
+                            "naics_code": {"type": "string"},
+                            "agency": {"type": "string"},
+                            "set_aside_type": {"type": "string"},
+                            "notice_type": {"type": "string"},
+                            "posted_from": {"type": "string"},
+                            "posted_to": {"type": "string"},
+                            "state": {"type": "string"},
+                            "limit": {"type": "integer"},
+                            "offset": {"type": "integer"},
+                        },
+                    },
+                },
+                {
+                    "name": "get_opportunity",
+                    "description": "Get full details of a SAM.gov opportunity by Notice ID.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "notice_id": {"type": "string"},
+                        },
+                        "required": ["notice_id"],
+                    },
+                },
+                {
+                    "name": "search_entities",
+                    "description": "Look up SAM-registered vendors by name, UEI, or CAGE code.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "uei": {"type": "string"},
+                            "cage_code": {"type": "string"},
+                            "legal_name": {"type": "string"},
+                            "registration_status": {"type": "string"},
+                            "limit": {"type": "integer"},
+                        },
+                    },
+                },
+            ],
         })
 
     sse = mcp.sse_app()
@@ -217,4 +258,10 @@ if __name__ == "__main__":
     ])
 
     port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )
