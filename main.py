@@ -13,11 +13,7 @@ from mcp.server.fastmcp import FastMCP
 API_KEY = os.getenv("SAM_API_KEY", "VHu23zpvOirNifNM2o9ewSeu6XvyjGlGvkSlM9y7")
 BASE_URL = "https://api.sam.gov"
 
-mcp = FastMCP(
-    "SAM.gov Connector",
-    host="0.0.0.0",
-    port=int(os.environ.get("PORT", 8000))
-)
+mcp = FastMCP("SAM.gov Connector")
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 def _get(path: str, params: dict) -> dict:
@@ -197,4 +193,28 @@ def search_entities(
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    mcp.run(transport="sse")
+    import uvicorn
+    from starlette.applications import Starlette
+    from starlette.routing import Route, Mount
+    from starlette.responses import JSONResponse
+
+    async def server_card(request):
+        return JSONResponse({
+            "name": "SAM.gov Connector",
+            "version": "1.0.0",
+            "description": "Connect Claude to SAM.gov for federal contract search and vendor lookup.",
+            "tools": [
+                {"name": "search_opportunities", "description": "Search federal contracts on SAM.gov by keyword, NAICS, agency, set-aside, state and date."},
+                {"name": "get_opportunity", "description": "Get full details of a SAM.gov opportunity by Notice ID."},
+                {"name": "search_entities", "description": "Look up SAM-registered vendors by name, UEI, or CAGE code."}
+            ]
+        })
+
+    sse = mcp.sse_app()
+    app = Starlette(routes=[
+        Route("/.well-known/mcp/server-card.json", server_card),
+        Mount("/", app=sse),
+    ])
+
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
