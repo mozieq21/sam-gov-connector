@@ -3,18 +3,18 @@ SAM.gov MCP Connector
 Connects Claude to the US Government's System for Award Management (SAM.gov).
 Built with FastMCP (Python). Deploy on Railway.
 """
-
+ 
 import os
 import httpx
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
-
+ 
 # ── Configuration ─────────────────────────────────────────────────────────────
 API_KEY = os.getenv("SAM_API_KEY", "VHu23zpvOirNifNM2o9ewSeu6XvyjGlGvkSlM9y7")
 BASE_URL = "https://api.sam.gov"
-
+ 
 mcp = FastMCP("SAM.gov Connector")
-
+ 
 # ── Helper ────────────────────────────────────────────────────────────────────
 def _get(path: str, params: dict) -> dict:
     params["api_key"] = API_KEY
@@ -23,8 +23,8 @@ def _get(path: str, params: dict) -> dict:
         resp = client.get(f"{BASE_URL}{path}", params=params)
         resp.raise_for_status()
         return resp.json()
-
-
+ 
+ 
 # ── Tool 1: Search Contract Opportunities ─────────────────────────────────────
 @mcp.tool()
 def search_opportunities(
@@ -41,7 +41,7 @@ def search_opportunities(
 ) -> dict:
     """
     Search for active federal contract opportunities on SAM.gov.
-
+ 
     Args:
         keywords:       Search terms (e.g. "telecom fiber network")
         naics_code:     NAICS industry code (e.g. "517311" for wired telecom)
@@ -92,14 +92,14 @@ def search_opportunities(
             for o in opps
         ],
     }
-
-
+ 
+ 
 # ── Tool 2: Get Full Opportunity Details ──────────────────────────────────────
 @mcp.tool()
 def get_opportunity(notice_id: str) -> dict:
     """
     Retrieve full details of a specific SAM.gov contract opportunity.
-
+ 
     Args:
         notice_id: The unique Notice ID (e.g. "SPE4A624R0022")
     """
@@ -129,8 +129,8 @@ def get_opportunity(notice_id: str) -> dict:
         "award":                 o.get("award"),
         "sam_url":               f"https://sam.gov/opp/{o.get('noticeId')}/view",
     }
-
-
+ 
+ 
 # ── Tool 3: Search Registered Entities (Vendors) ──────────────────────────────
 @mcp.tool()
 def search_entities(
@@ -143,7 +143,7 @@ def search_entities(
     """
     Search for companies registered in SAM.gov.
     Use for vendor qualification, teaming research, or debarment checks.
-
+ 
     Args:
         uei:                 Unique Entity Identifier (12-character alphanumeric)
         cage_code:           5-character CAGE code (e.g. "5N6X3")
@@ -189,15 +189,15 @@ def search_entities(
         "returned": len(results),
         "entities": results,
     }
-
-
+ 
+ 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
     from starlette.applications import Starlette
     from starlette.routing import Route, Mount
     from starlette.responses import JSONResponse
-
+ 
     async def server_card(request):
         return JSONResponse({
             "name": "SAM.gov Connector",
@@ -250,13 +250,21 @@ if __name__ == "__main__":
                 },
             ],
         })
-
-    sse = mcp.sse_app()
+ 
+    # Use streamable-http transport (works better than SSE through Railway's proxy)
+    # Falls back to SSE if streamable_http_app() is not available in this SDK version
+    try:
+        mcp_app = mcp.streamable_http_app()
+        print("Transport: streamable-http at /mcp")
+    except AttributeError:
+        mcp_app = mcp.sse_app()
+        print("Transport: SSE at /sse")
+ 
     app = Starlette(routes=[
         Route("/.well-known/mcp/server-card.json", server_card),
-        Mount("/", app=sse),
+        Mount("/", app=mcp_app),
     ])
-
+ 
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(
         app,
