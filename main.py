@@ -13,7 +13,11 @@ from mcp.server.fastmcp import FastMCP
 API_KEY = os.getenv("SAM_API_KEY", "VHu23zpvOirNifNM2o9ewSeu6XvyjGlGvkSlM9y7")
 BASE_URL = "https://api.sam.gov"
 
-mcp = FastMCP("SAM.gov Connector")
+mcp = FastMCP(
+    "SAM.gov Connector",
+    host="0.0.0.0",
+    port=int(os.environ.get("PORT", 8000))
+)
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 def _get(path: str, params: dict) -> dict:
@@ -193,8 +197,4 @@ def search_entities(
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Force FastMCP to bind on all interfaces at Railway's assigned port
-    port = os.environ.get("PORT", "8000")
-    os.environ["FASTMCP_HOST"] = "0.0.0.0"
-    os.environ["FASTMCP_PORT"] = port
     mcp.run(transport="sse")
